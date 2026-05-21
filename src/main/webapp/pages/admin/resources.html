@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>资源管理 — 管理后台 — CampusRes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../../css/style.css" rel="stylesheet">
+</head>
+<body>
+<header id="navbar"></header>
+
+<div class="container py-4">
+  <div class="breadcrumb-nav">
+    <a href="../../index.html">首页</a><span class="separator">/</span>管理后台<span class="separator">/</span>资源管理
+  </div>
+
+  <div class="admin-header">
+    <h2><i class="bi bi-file-earmark-zip me-2"></i>资源管理</h2>
+    <a href="users.html" class="btn btn-outline-light btn-sm">用户管理 <i class="bi bi-arrow-right"></i></a>
+  </div>
+
+  <div id="loadingState">
+    <div class="skeleton" style="height:300px;border-radius:var(--radius);"></div>
+  </div>
+
+  <div id="contentState" style="display:none;">
+    <div class="admin-table">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>标题</th>
+            <th>分类</th>
+            <th>上传者</th>
+            <th>下载量</th>
+            <th>上传时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="resourceTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="errorState" style="display:none;" class="empty-state">
+    <span class="empty-icon"><i class="bi bi-exclamation-triangle"></i></span>
+    <div class="empty-title">加载失败</div>
+    <button class="btn btn-accent mt-3" onclick="location.reload()">重试</button>
+  </div>
+
+  <div id="emptyState" style="display:none;" class="empty-state">
+    <span class="empty-icon"><i class="bi bi-inbox"></i></span>
+    <div class="empty-title">暂无资源</div>
+  </div>
+</div>
+
+<footer id="footer"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/common.js"></script>
+<script>
+(async function() {
+  const user = await checkAdmin();
+  if (!user) return;
+
+  function getCatTagCls(catId) {
+    const map = { 1:'steam', 2:'vpn', 3:'bt', 4:'github', 5:'api', 6:'other' };
+    return 'cat-tag cat-tag-' + (map[catId] || 'other');
+  }
+
+  async function loadResources() {
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('contentState').style.display = 'none';
+    document.getElementById('errorState').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+
+    try {
+      const data = await API.get('/api/resources', { page: 1, size: 100 });
+      const resources = data.records || data || [];
+
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (!resources.length) {
+        document.getElementById('emptyState').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('contentState').style.display = 'block';
+      document.getElementById('resourceTableBody').innerHTML = resources.map(r => `
+        <tr>
+          <td>${r.id}</td>
+          <td><strong>${escHtml(r.title)}</strong></td>
+          <td><span class="${getCatTagCls(r.categoryId)}">${escHtml(r.categoryName || '')}</span></td>
+          <td>${escHtml(r.uploaderName || '匿名')}</td>
+          <td>${r.downloadCount || 0}</td>
+          <td>${formatDate(r.createdAt)}</td>
+          <td>
+            <a href="../resource-detail.html?id=${r.id}" class="btn btn-outline-light btn-sm me-1" style="padding:4px 10px;font-size:0.75rem;">查看</a>
+            <button class="btn-danger-sm delete-btn" data-id="${r.id}" data-title="${escHtml(r.title)}">删除</button>
+          </td>
+        </tr>`).join('');
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const rid = btn.dataset.id;
+          const rtitle = btn.dataset.title;
+          if (!confirm(`确定要删除资源「${rtitle}」吗？\n\n此操作不可撤销，服务器上的文件也将被删除！`)) return;
+
+          try {
+            await API.del('/api/admin/resources/' + rid);
+            showToast('资源已删除', 'success');
+            loadResources();
+          } catch {}
+        });
+      });
+    } catch {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+    }
+  }
+
+  loadResources();
+})();
+</script>
+</body>
+</html>

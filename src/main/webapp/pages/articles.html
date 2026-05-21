@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教程课堂 — CampusRes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+<header id="navbar"></header>
+
+<div class="container py-4">
+  <div class="breadcrumb-nav">
+    <a href="../index.html">首页</a><span class="separator">/</span>教程课堂
+  </div>
+
+  <div class="row">
+    <div class="col-lg-2 col-md-3 mb-4">
+      <div class="sidebar">
+        <div class="sidebar-title"><i class="bi bi-grid me-2"></i>分类筛选</div>
+        <a class="cat-link active" data-id="">全部文章</a>
+        <div id="categoryLinks"></div>
+      </div>
+    </div>
+
+    <div class="col-lg-10 col-md-9">
+      <h1 class="section-title">教程课堂</h1>
+
+      <div id="articleList">
+        <div class="skeleton skeleton-card" style="height:100px;margin-bottom:16px;"></div>
+        <div class="skeleton skeleton-card" style="height:100px;margin-bottom:16px;"></div>
+        <div class="skeleton skeleton-card" style="height:100px;margin-bottom:16px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer id="footer"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/common.js"></script>
+<script>
+(function() {
+  let currentCategoryId = null;
+
+  function getCatTagCls(catId) {
+    const map = { 1:'steam', 2:'vpn', 3:'bt', 4:'github', 5:'api', 6:'other' };
+    return 'cat-tag cat-tag-' + (map[catId] || 'other');
+  }
+
+  async function loadCategories() {
+    try {
+      const cats = await API.get('/api/resources/categories');
+      const list = Array.isArray(cats) ? cats : (cats.records || cats || []);
+      document.getElementById('categoryLinks').innerHTML = list.map(c =>
+        `<a class="cat-link" data-id="${c.id}">${escHtml(c.name)}</a>`
+      ).join('');
+
+      document.querySelectorAll('#categoryLinks .cat-link').forEach(link => {
+        link.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar .cat-link').forEach(a => a.classList.remove('active'));
+          link.classList.add('active');
+          currentCategoryId = link.dataset.id ? parseInt(link.dataset.id) : null;
+          loadArticles();
+        });
+      });
+    } catch {}
+  }
+
+  async function loadArticles() {
+    const el = document.getElementById('articleList');
+    el.innerHTML = '<div class="skeleton skeleton-card" style="height:100px;margin-bottom:16px;"></div>'.repeat(3);
+
+    const params = {};
+    if (currentCategoryId) params.categoryId = currentCategoryId;
+
+    try {
+      const data = await API.get('/api/articles', params);
+      const records = data.records || data || [];
+
+      if (!records.length) {
+        el.innerHTML = `<div class="empty-state">
+          <span class="empty-icon"><i class="bi bi-journal-text"></i></span>
+          <div class="empty-title">暂无教程文章</div>
+          <div class="empty-desc">精彩内容即将上线</div>
+        </div>`;
+        return;
+      }
+
+      el.innerHTML = records.map(a => `
+        <a href="article-detail.html?id=${a.id}" class="text-decoration-none">
+          <div class="article-card mb-3">
+            <div class="ac-title">${escHtml(a.title)}</div>
+            <div class="ac-preview">${escHtml(a.summary || (a.content || '').replace(/[#*`>\-\[\]()!|{}\\]/g, '').substring(0, 120))}</div>
+            <div class="ac-meta">
+              ${a.categoryId ? `<span class="${getCatTagCls(a.categoryId)}">${escHtml(a.categoryName || '')}</span>` : ''}
+              <span><i class="bi bi-person"></i> ${escHtml(a.authorName || '匿名')}</span>
+              <span><i class="bi bi-eye"></i> ${a.viewCount || 0} 阅读</span>
+              <span><i class="bi bi-clock"></i> ${formatDate(a.createdAt)}</span>
+            </div>
+          </div>
+        </a>`).join('');
+    } catch {
+      el.innerHTML = `<div class="empty-state">
+        <span class="empty-icon"><i class="bi bi-exclamation-triangle"></i></span>
+        <div class="empty-title">加载失败</div>
+        <button class="btn btn-accent mt-3" onclick="location.reload()">重试</button>
+      </div>`;
+    }
+  }
+
+  document.querySelector('.sidebar .cat-link[data-id=""]').addEventListener('click', function() {
+    document.querySelectorAll('.sidebar .cat-link').forEach(a => a.classList.remove('active'));
+    this.classList.add('active');
+    currentCategoryId = null;
+    loadArticles();
+  });
+
+  loadCategories();
+  loadArticles();
+})();
+</script>
+</body>
+</html>

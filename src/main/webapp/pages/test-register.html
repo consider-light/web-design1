@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>注册测试</title>
+</head>
+<body>
+
+<h2>注册测试 (极简版)</h2>
+
+<form id="f">
+  <input id="u" placeholder="用户名" autocomplete="off"><br><br>
+  <input id="p" type="password" placeholder="密码"><br><br>
+  <button type="submit">注册</button>
+</form>
+
+<div id="log" style="margin-top:20px; padding:10px; background:#111; color:#0f0; font-family:monospace; white-space:pre-wrap;"></div>
+
+<script>
+var logEl = document.getElementById('log');
+function log(msg) {
+  logEl.textContent += msg + '\n';
+  console.log(msg);
+}
+
+log('页面加载完成');
+log('BASE = /demo-1.0-SNAPSHOT');
+
+document.getElementById('f').addEventListener('submit', function(e) {
+  e.preventDefault();
+  log('表单提交拦截成功');
+
+  var u = document.getElementById('u').value.trim();
+  var p = document.getElementById('p').value;
+  log('用户名: ' + u + ', 密码长度: ' + p.length);
+
+  var url = '/demo-1.0-SNAPSHOT/api/register';
+  log('准备 fetch: ' + url);
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: u, password: p })
+  })
+  .then(function(res) {
+    log('收到响应, status=' + res.status);
+    return res.json();
+  })
+  .then(function(json) {
+    log('解析JSON: ' + JSON.stringify(json));
+    if (json.code === 200) {
+      log('注册成功! 准备跳转到 login.html');
+      setTimeout(function() {
+        log('执行跳转...');
+        location.replace('login.html');
+      }, 500);
+    } else {
+      log('注册失败: ' + json.message);
+    }
+  })
+  .catch(function(err) {
+    log('网络错误: ' + err.message);
+  });
+});
+</script>
+
+</body>
+</html>
